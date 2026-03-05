@@ -1,0 +1,766 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>نظام إدارة السجاد - طباعة PDF</title>
+  <!-- Tailwind & Font Awesome -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <!-- html2pdf library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style>
+    /* الوضع الداكن مع لون برتقالي مميز */
+    body { background-color: #0d0d0d; color: #fafafa; }
+    .sidebar-btn.active { background-color: #2a2a2a; border-right: 4px solid #f97316; }
+    .popup-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .popup-content {
+      background: #1a1a1a;
+      color: #fafafa;
+      border: 1px solid #444;
+      border-radius: 1rem;
+      padding: 2rem;
+      max-width: 500px;
+      width: 90%;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    input, textarea, select, datalist { background-color: #2a2a2a !important; color: #fafafa !important; border-color: #444 !important; }
+    input:focus, textarea:focus { outline: 2px solid #f97316 !important; }
+    table { background-color: #1a1a1a; color: #fafafa; border-color: #444; }
+    th { background-color: #2a2a2a; color: #fafafa; }
+    td { border-color: #444; }
+    .bg-white, .bg-gray-50, .bg-gray-100, .bg-amber-50 { background-color: #1a1a1a !important; color: #fafafa; }
+    .btn-primary {
+      background-color: #f97316;
+      color: #0d0d0d;
+      font-weight: bold;
+      padding: 0.5rem 1rem;
+      border-radius: 0.75rem;
+      transition: all 0.2s;
+    }
+    .btn-primary:hover { background-color: #fb923c; }
+    .btn-secondary {
+      background-color: #2a2a2a;
+      color: #fafafa;
+      border: 1px solid #444;
+      padding: 0.5rem 1rem;
+      border-radius: 0.75rem;
+      transition: all 0.2s;
+    }
+    .btn-secondary:hover { background-color: #3a3a3a; }
+    .switch-container {
+      display: flex;
+      gap: 0.5rem;
+      background-color: #2a2a2a;
+      padding: 0.25rem;
+      border-radius: 5rem;
+      border: 1px solid #444;
+    }
+    .switch-option {
+      padding: 0.6rem 1.5rem;
+      border-radius: 5rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+      text-align: center;
+      flex: 1;
+    }
+    .switch-option.active { background-color: #f97316; color: #0d0d0d; }
+    .switch-option:not(.active) { background-color: transparent; color: #fafafa; }
+    .switch-option:not(.active):hover { background-color: #3a3a3a; }
+    .table-btn {
+      padding: 0.25rem 0.75rem;
+      border-radius: 0.5rem;
+      font-size: 0.875rem;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .table-btn.orange { background-color: #f97316; color: #0d0d0d; }
+    .table-btn.orange:hover { background-color: #fb923c; }
+    .table-btn.blue { background-color: #1e3a8a; color: #fafafa; }
+    .table-btn.blue:hover { background-color: #2563eb; }
+    .table-btn.green { background-color: #166534; color: #fafafa; }
+    .table-btn.green:hover { background-color: #22c55e; }
+    .table-btn.red { background-color: #991b1b; color: #fafafa; }
+    .table-btn.red:hover { background-color: #ef4444; }
+    .text-amber-400 { color: #f97316 !important; }
+    .border-amber-400 { border-color: #f97316 !important; }
+    .bg-amber-600 { background-color: #f97316 !important; color: #0d0d0d !important; }
+    .bg-amber-700 { background-color: #ea580c !important; color: #0d0d0d !important; }
+    .hover\:bg-amber-700:hover { background-color: #ea580c !important; }
+    .text-amber-700 { color: #f97316 !important; }
+  </style>
+</head>
+<body class="font-sans">
+
+<div class="flex h-screen overflow-hidden">
+  <!-- الشريط الجانبي -->
+  <div class="w-64 bg-gray-900 text-white p-5 flex flex-col shadow-xl" style="background-color: #0a0a0a;">
+    <h2 class="text-2xl font-bold mb-8 border-b border-gray-700 pb-3" style="color: #fafafa;">⚡ القائمة</h2>
+    <ul class="space-y-3">
+      <li><button id="btn-invoice" class="sidebar-btn w-full text-right px-4 py-3 rounded-lg hover:bg-gray-800 transition flex items-center gap-3"><i class="fas fa-file-invoice w-5" style="color: #f97316;"></i><span>إنشاء فاتورة</span></button></li>
+      <li><button id="btn-traders" class="sidebar-btn w-full text-right px-4 py-3 rounded-lg hover:bg-gray-800 transition flex items-center gap-3"><i class="fas fa-users w-5" style="color: #f97316;"></i><span>التجار</span></button></li>
+      <li><button id="btn-customers" class="sidebar-btn w-full text-right px-4 py-3 rounded-lg hover:bg-gray-800 transition flex items-center gap-3"><i class="fas fa-user-friends w-5" style="color: #f97316;"></i><span>العملاء</span></button></li>
+      <li><button id="btn-stock" class="sidebar-btn w-full text-right px-4 py-3 rounded-lg hover:bg-gray-800 transition flex items-center gap-3"><i class="fas fa-boxes w-5" style="color: #f97316;"></i><span>المخزن</span></button></li>
+    </ul>
+    <div class="mt-auto pt-6 text-xs text-gray-500 border-t border-gray-800"><p>تخزين محلي - متكامل</p></div>
+  </div>
+
+  <!-- المحتوى الرئيسي -->
+  <div class="flex-1 p-6 overflow-y-auto" id="main-content" style="background-color: #0d0d0d;"></div>
+</div>
+
+<script>
+  (function() {
+    // ---------- المفاتيح في localStorage ----------
+    const STORAGE_TRADERS = 'sijjad_traders';
+    const STORAGE_INVOICES = 'sijjad_invoices';
+    const STORAGE_PRODUCTS = 'sijjad_products';
+
+    // ---------- بيانات المنتجات الافتراضية ----------
+    const defaultProducts = [
+      { id: 1, name: 'سجاد أحمر (ممتاز)', pricePerMeter: 85, description: 'سجاد صوف فاخر' },
+      { id: 2, name: 'سجاد أزرق (صوف)', pricePerMeter: 120, description: 'لون أزرق غامق' },
+      { id: 3, name: 'سجاد أخضر (حرير)', pricePerMeter: 210, description: 'حرير طبيعي' },
+      { id: 4, name: 'سجاد تركي', pricePerMeter: 340, description: 'صناعة تركية' },
+      { id: 5, name: 'سجاد إيراني', pricePerMeter: 450, description: 'أصالة إيرانية' },
+      { id: 6, name: 'سجاد مودرن', pricePerMeter: 175, description: 'تصميمات عصرية' },
+    ];
+
+    // ---------- تحميل البيانات من localStorage ----------
+    function loadTraders() {
+      const stored = localStorage.getItem(STORAGE_TRADERS);
+      if (stored) { try { return JSON.parse(stored); } catch (e) { return []; } }
+      return [];
+    }
+    function saveTraders(traders) { localStorage.setItem(STORAGE_TRADERS, JSON.stringify(traders)); }
+
+    function loadInvoices() {
+      const stored = localStorage.getItem(STORAGE_INVOICES);
+      if (stored) { try { return JSON.parse(stored); } catch (e) { return []; } }
+      return [];
+    }
+    function saveInvoices(invoices) { localStorage.setItem(STORAGE_INVOICES, JSON.stringify(invoices)); }
+
+    function loadProducts() {
+      const stored = localStorage.getItem(STORAGE_PRODUCTS);
+      if (stored) { try { return JSON.parse(stored); } catch (e) { return defaultProducts; } }
+      else { saveProducts(defaultProducts); return defaultProducts; }
+    }
+    function saveProducts(products) { localStorage.setItem(STORAGE_PRODUCTS, JSON.stringify(products)); }
+
+    // ---------- المتغيرات العامة ----------
+    let traders = loadTraders();
+    let invoices = loadInvoices();
+    let products = loadProducts();
+    let currentView = 'customers';
+
+    // متغيرات الفاتورة الحالية
+    let invoiceItems = [
+      { id: Date.now() + Math.random(), productSearch: '', length: 0, width: 0, price: 0, rowTotal: 0 }
+    ];
+    let partyType = 'customer';
+    let merchantPaymentType = 'cash';
+    let paidAmount = 0;
+    let selectedTraderId = null;
+
+    // ---------- دوال مساعدة ----------
+    function calculateRowTotal(l,w,p) { return (parseFloat(l)||0)*(parseFloat(w)||0)*(parseFloat(p)||0); }
+    function calculateOverallTotal() { return invoiceItems.reduce((s,it)=> s + (it.rowTotal||0), 0); }
+    function updateRowTotal(index) { invoiceItems[index].rowTotal = calculateRowTotal(invoiceItems[index].length, invoiceItems[index].width, invoiceItems[index].price); }
+    function recalcAllRows() { invoiceItems.forEach((_,i)=> updateRowTotal(i)); }
+
+    function getTraderDebt(traderId) {
+      return invoices.filter(inv => inv.traderId === traderId && inv.paymentType === 'installment')
+                     .reduce((sum, inv) => sum + (inv.remaining || 0), 0);
+    }
+
+    function deleteTrader(traderId) {
+      const traderInvoices = invoices.filter(inv => inv.traderId === traderId);
+      if (traderInvoices.length > 0) {
+        alert('لا يمكن حذف التاجر لأنه لديه فواتير مسجلة. قم بحذف الفواتير أولاً.');
+        return false;
+      }
+      if (!confirm('هل أنت متأكد من حذف هذا التاجر؟')) return false;
+      traders = traders.filter(t => t.id !== traderId);
+      saveTraders(traders);
+      renderTraders();
+      return true;
+    }
+
+    function payTraderDebt(traderId, amount) {
+      const traderInvoices = invoices.filter(inv => inv.traderId === traderId && inv.paymentType === 'installment' && inv.remaining > 0)
+                                     .sort((a, b) => new Date(a.date) - new Date(b.date));
+      let remainingAmount = amount;
+      for (let inv of traderInvoices) {
+        if (remainingAmount <= 0) break;
+        if (inv.remaining <= remainingAmount) { remainingAmount -= inv.remaining; inv.remaining = 0; } 
+        else { inv.remaining -= remainingAmount; remainingAmount = 0; }
+      }
+      if (amount - remainingAmount > 0) alert(`تم تسديد ${(amount - remainingAmount).toFixed(2)} ريال من ديون التاجر.`);
+      else alert('لم يتم تسديد أي مبلغ (لا توجد ديون مستحقة)');
+      saveInvoices(invoices);
+    }
+
+    function saveCurrentInvoice() {
+      if (partyType === 'merchant' && !selectedTraderId) { alert('يرجى اختيار تاجر للفاتورة'); return false; }
+      const invoiceNumber = 'INV-' + Date.now().toString().slice(-8);
+      const overallTotal = calculateOverallTotal();
+      const paid = (partyType === 'merchant' && merchantPaymentType === 'installment') ? paidAmount : overallTotal;
+      const remaining = (partyType === 'merchant' && merchantPaymentType === 'installment') ? (overallTotal - paid) : 0;
+      const newInvoice = {
+        id: Date.now() + Math.random(),
+        number: invoiceNumber,
+        date: new Date().toLocaleDateString('ar-EG'),
+        items: invoiceItems.map(it => ({ ...it })),
+        total: overallTotal,
+        paid: paid,
+        remaining: remaining,
+        paymentType: partyType === 'merchant' ? merchantPaymentType : 'cash',
+        partyType: partyType,
+        traderId: partyType === 'merchant' ? selectedTraderId : null,
+        customerName: partyType === 'customer' ? 'عميل نقدي' : null
+      };
+      invoices.push(newInvoice);
+      saveInvoices(invoices);
+      invoiceItems = [{ id: Date.now() + Math.random(), productSearch: '', length: 0, width: 0, price: 0, rowTotal: 0 }];
+      paidAmount = 0; selectedTraderId = null; partyType = 'customer'; merchantPaymentType = 'cash';
+      alert('تم حفظ الفاتورة بنجاح');
+      return true;
+    }
+
+    // ---------- عرض الفاتورة (كما هي) ----------
+    function renderInvoice() {
+      const main = document.getElementById('main-content');
+      if (!main) return;
+      const traderOptions = traders.map(t => `<option value="${t.name}">${t.name} - ${t.phone}</option>`).join('');
+
+      let html = `<div class="rounded-2xl shadow-xl p-6 md:p-8 border" style="background-color: #1a1a1a; border-color: #333;">
+        <h1 class="text-3xl font-bold mb-6 flex items-center gap-2" style="color: #fafafa;"><i class="fas fa-receipt" style="color: #f97316;"></i> إنشاء فاتورة جديدة</h1>
+        <div id="items-container" class="space-y-4 mb-6">`;
+
+      invoiceItems.forEach((item, index) => {
+        const opts = products.map(p => `<option value="${p.name} (${p.pricePerMeter} ريال)">${p.name}</option>`).join('');
+        html += `<div class="item-row p-4 rounded-xl border shadow-sm relative" style="background-color: #2a2a2a; border-color: #444;" data-index="${index}">
+          <button class="remove-item absolute left-3 top-3 text-red-500 hover:text-red-700" data-index="${index}"><i class="fas fa-trash-alt"></i></button>
+          <div class="grid grid-cols-1 md:grid-cols-6 gap-3 items-end">
+            <div class="md:col-span-2">
+              <label class="block text-sm font-medium mb-1" style="color: #ccc;">ابحث عن الصنف</label>
+              <input type="text" placeholder="اكتب اسم الصنف..." value="${item.productSearch}" class="product-search w-full p-3 border rounded-lg" list="product-datalist-${index}" data-index="${index}" style="background-color: #2a2a2a; color: #fafafa; border-color: #444;">
+              <datalist id="product-datalist-${index}">${opts}</datalist>
+            </div>
+            <div><label class="block text-sm font-medium mb-1" style="color: #ccc;">الطول (م)</label><input type="number" step="0.01" min="0" value="${item.length}" class="length-input w-full p-3 border rounded-lg" data-index="${index}" style="background-color: #2a2a2a; color: #fafafa; border-color: #444;"></div>
+            <div><label class="block text-sm font-medium mb-1" style="color: #ccc;">العرض (م)</label><input type="number" step="0.01" min="0" value="${item.width}" class="width-input w-full p-3 border rounded-lg" data-index="${index}" style="background-color: #2a2a2a; color: #fafafa; border-color: #444;"></div>
+            <div><label class="block text-sm font-medium mb-1" style="color: #ccc;">سعر المتر</label><input type="number" step="0.01" min="0" value="${item.price}" class="price-input w-full p-3 border rounded-lg" data-index="${index}" style="background-color: #2a2a2a; color: #fafafa; border-color: #444;"></div>
+            <div><label class="block text-sm font-medium mb-1" style="color: #ccc;">إجمالي الصنف</label><input type="number" step="0.01" readonly value="${item.rowTotal.toFixed(2)}" class="row-total w-full p-3 border rounded-lg" style="background-color: #3a3a3a; color: #fafafa; border-color: #444;" data-index="${index}"></div>
+          </div>
+        </div>`;
+      });
+
+      html += `</div>
+      <button id="add-item-btn" class="mt-3 px-5 py-3 rounded-xl border transition flex items-center gap-2 text-base font-medium btn-secondary"><i class="fas fa-plus-circle" style="color: #f97316;"></i> إضافة صنف آخر</button>`;
+
+      html += `<div class="mt-8 p-5 rounded-xl border" style="background-color: #2a2a2a; border-color: #444;">
+        <div class="flex items-center gap-6 flex-wrap">
+          <span class="font-semibold" style="color: #ccc;">نوع الطرف:</span>
+          <div class="switch-container" id="party-type-switch" style="width: 250px;">
+            <div class="switch-option ${partyType === 'customer' ? 'active' : ''}" data-value="customer">عميل</div>
+            <div class="switch-option ${partyType === 'merchant' ? 'active' : ''}" data-value="merchant">تاجر</div>
+          </div>
+        </div>
+        <div id="merchant-options" class="mt-4 ${partyType === 'merchant' ? '' : 'hidden'}">
+          <div class="mb-4">
+            <label class="block text-sm font-medium mb-1" style="color: #ccc;">ابحث عن التاجر</label>
+            <input type="text" id="trader-search" placeholder="اكتب اسم التاجر..." value="${selectedTraderId ? traders.find(t => t.id === selectedTraderId)?.name || '' : ''}" class="w-full p-3 border rounded-lg" list="traders-list" style="background-color: #2a2a2a; color: #fafafa; border-color: #444;">
+            <datalist id="traders-list">${traderOptions}</datalist>
+          </div>
+          <div class="flex items-center gap-6 flex-wrap border-t pt-4" style="border-color: #444;">
+            <span class="font-semibold" style="color: #ccc;">طريقة الدفع:</span>
+            <div class="switch-container" id="payment-type-switch" style="width: 250px;">
+              <div class="switch-option ${merchantPaymentType === 'cash' ? 'active' : ''}" data-value="cash">كاش</div>
+              <div class="switch-option ${merchantPaymentType === 'installment' ? 'active' : ''}" data-value="installment">تقسيط</div>
+            </div>
+          </div>
+          <div id="installment-fields" class="mt-4 grid grid-cols-2 gap-4 ${merchantPaymentType === 'installment' && partyType === 'merchant' ? '' : 'hidden'}">
+            <div><label class="block text-sm font-medium mb-1" style="color: #ccc;">المبلغ المدفوع</label><input type="number" id="paid-amount" value="${paidAmount}" min="0" step="0.01" class="w-full p-3 border rounded-xl" style="background-color: #2a2a2a; color: #fafafa; border-color: #444;"></div>
+            <div><label class="block text-sm font-medium mb-1" style="color: #ccc;">المبلغ المتبقي</label><input type="number" id="remaining-amount" readonly value="${(calculateOverallTotal() - paidAmount).toFixed(2)}" class="w-full p-3 border rounded-xl" style="background-color: #3a3a3a; color: #fafafa; border-color: #444;"></div>
+          </div>
+        </div>
+      </div>`;
+
+      html += `<div class="mt-6 flex justify-between items-center p-4 rounded-xl border" style="background-color: #2a2a2a; border-color: #f97316;">
+        <span class="text-xl font-bold" style="color: #fafafa;">المجموع الكلي:</span>
+        <span id="overall-total" class="text-3xl font-extrabold" style="color: #f97316;">${calculateOverallTotal().toFixed(2)}</span>
+      </div>
+      <div class="mt-6 flex justify-left">
+        <button id="save-invoice-btn" class="px-8 py-3 rounded-xl font-bold shadow-md btn-primary"><i class="fas fa-save ml-2"></i> حفظ الفاتورة</button>
+      </div>
+      </div>`;
+
+      main.innerHTML = html;
+      attachInvoiceEvents();
+      updateInstallmentFields();
+    }
+
+    function attachInvoiceEvents() {
+      const partySwitch = document.getElementById('party-type-switch');
+      if (partySwitch) {
+        partySwitch.querySelectorAll('.switch-option').forEach(opt => {
+          opt.addEventListener('click', function() {
+            partySwitch.querySelectorAll('.switch-option').forEach(o => o.classList.remove('active'));
+            this.classList.add('active');
+            partyType = this.dataset.value;
+            const merchantDiv = document.getElementById('merchant-options');
+            if (merchantDiv) partyType === 'merchant' ? merchantDiv.classList.remove('hidden') : merchantDiv.classList.add('hidden');
+            if (partyType !== 'merchant') document.getElementById('installment-fields')?.classList.add('hidden');
+            updateInstallmentFields();
+          });
+        });
+      }
+
+      const paymentSwitch = document.getElementById('payment-type-switch');
+      if (paymentSwitch) {
+        paymentSwitch.querySelectorAll('.switch-option').forEach(opt => {
+          opt.addEventListener('click', function() {
+            paymentSwitch.querySelectorAll('.switch-option').forEach(o => o.classList.remove('active'));
+            this.classList.add('active');
+            merchantPaymentType = this.dataset.value;
+            const instFields = document.getElementById('installment-fields');
+            if (merchantPaymentType === 'installment' && partyType === 'merchant') {
+              instFields?.classList.remove('hidden');
+            } else {
+              instFields?.classList.add('hidden');
+            }
+            updateInstallmentFields();
+          });
+        });
+      }
+
+      document.querySelectorAll('.product-search').forEach(inp => {
+        inp.addEventListener('input', function(e) {
+          let idx = this.dataset.index, val = this.value;
+          invoiceItems[idx].productSearch = val;
+          let matched = products.find(p => p.name.includes(val) || val.includes(p.name));
+          if (matched) {
+            let priceInp = document.querySelector(`.price-input[data-index="${idx}"]`);
+            if (priceInp) { priceInp.value = matched.pricePerMeter; invoiceItems[idx].price = matched.pricePerMeter; }
+          }
+          updateRowTotal(parseInt(idx));
+          document.querySelector(`.row-total[data-index="${idx}"]`).value = invoiceItems[idx].rowTotal.toFixed(2);
+          updateOverallTotal(); updateInstallmentFields();
+        });
+      });
+
+      document.querySelectorAll('.length-input,.width-input,.price-input').forEach(inp => {
+        inp.addEventListener('input', function(e) {
+          let idx = this.dataset.index;
+          let len = document.querySelector(`.length-input[data-index="${idx}"]`).value;
+          let wid = document.querySelector(`.width-input[data-index="${idx}"]`).value;
+          let pr = document.querySelector(`.price-input[data-index="${idx}"]`).value;
+          invoiceItems[idx].length = parseFloat(len) || 0;
+          invoiceItems[idx].width = parseFloat(wid) || 0;
+          invoiceItems[idx].price = parseFloat(pr) || 0;
+          updateRowTotal(parseInt(idx));
+          document.querySelector(`.row-total[data-index="${idx}"]`).value = invoiceItems[idx].rowTotal.toFixed(2);
+          updateOverallTotal(); updateInstallmentFields();
+        });
+      });
+
+      document.querySelectorAll('.remove-item').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.preventDefault(); let idx = btn.dataset.index;
+          if (invoiceItems.length > 1) invoiceItems.splice(idx, 1);
+          else invoiceItems[0] = { id: Date.now(), productSearch: '', length: 0, width: 0, price: 0, rowTotal: 0 };
+          recalcAllRows(); renderInvoice();
+        });
+      });
+
+      document.getElementById('add-item-btn')?.addEventListener('click', () => {
+        invoiceItems.push({ id: Date.now(), productSearch: '', length: 0, width: 0, price: 0, rowTotal: 0 });
+        renderInvoice();
+      });
+
+      document.getElementById('paid-amount')?.addEventListener('input', function() { paidAmount = parseFloat(this.value) || 0; updateInstallmentFields(); });
+      document.getElementById('trader-search')?.addEventListener('input', function() {
+        let name = this.value; let matched = traders.find(t => t.name === name);
+        selectedTraderId = matched ? matched.id : null;
+      });
+
+      document.getElementById('save-invoice-btn')?.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (saveCurrentInvoice()) { renderTraders(); setActiveSidebar('btn-traders'); }
+      });
+    }
+
+    function updateOverallTotal() { let span = document.getElementById('overall-total'); if (span) span.innerText = calculateOverallTotal().toFixed(2); }
+    function updateInstallmentFields() {
+      let rem = document.getElementById('remaining-amount'), paid = document.getElementById('paid-amount');
+      if (rem && paid) { let tot = calculateOverallTotal(); let p = parseFloat(paid.value) || 0; rem.value = (tot - p).toFixed(2); }
+    }
+
+    // ---------- قسم التجار ----------
+    function showTraderPopup(traderToEdit = null) {
+      document.querySelectorAll('.popup-overlay').forEach(el => el.remove());
+      const overlay = document.createElement('div'); overlay.className = 'popup-overlay';
+      const content = document.createElement('div'); content.className = 'popup-content';
+      content.innerHTML = `
+        <h2 class="text-2xl font-bold mb-4" style="color: #f97316;">${traderToEdit ? 'تعديل تاجر' : 'إضافة تاجر جديد'}</h2>
+        <form id="trader-form" class="space-y-4">
+          <div><label class="block text-sm font-medium" style="color: #ccc;">الاسم الكامل</label><input type="text" id="trader-name" required value="${traderToEdit ? traderToEdit.name : ''}" class="w-full p-3 border rounded-lg" style="background-color: #2a2a2a; color: #fafafa; border-color: #444;"></div>
+          <div><label class="block text-sm font-medium" style="color: #ccc;">رقم الهاتف</label><input type="text" id="trader-phone" required value="${traderToEdit ? traderToEdit.phone : ''}" class="w-full p-3 border rounded-lg" style="background-color: #2a2a2a; color: #fafafa; border-color: #444;"></div>
+          <div><label class="block text-sm font-medium" style="color: #ccc;">العنوان</label><input type="text" id="trader-address" required value="${traderToEdit ? traderToEdit.address : ''}" class="w-full p-3 border rounded-lg" style="background-color: #2a2a2a; color: #fafafa; border-color: #444;"></div>
+          <div class="flex gap-3 mt-4"><button type="submit" class="btn-primary px-6 py-2 rounded-lg">${traderToEdit ? 'تحديث' : 'إضافة'}</button><button type="button" id="close-popup" class="btn-secondary px-6 py-2 rounded-lg">إلغاء</button></div>
+        </form>`;
+      overlay.appendChild(content); document.body.appendChild(overlay);
+      document.getElementById('close-popup').addEventListener('click', () => overlay.remove());
+      document.getElementById('trader-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.getElementById('trader-name').value.trim();
+        const phone = document.getElementById('trader-phone').value.trim();
+        const address = document.getElementById('trader-address').value.trim();
+        if (!name || !phone || !address) return alert('يرجى ملء جميع الحقول');
+        if (traderToEdit) { traderToEdit.name = name; traderToEdit.phone = phone; traderToEdit.address = address; }
+        else { const newId = traders.length ? Math.max(...traders.map(t => t.id)) + 1 : 1; traders.push({ id: newId, name, phone, address }); }
+        saveTraders(traders); overlay.remove(); renderTraders();
+      });
+    }
+
+    function showPaymentPopup(traderId, traderName) {
+      const currentDebt = getTraderDebt(traderId);
+      if (currentDebt <= 0) { alert('لا يوجد ديون مستحقة لهذا التاجر'); return; }
+      document.querySelectorAll('.popup-overlay').forEach(el => el.remove());
+      const overlay = document.createElement('div'); overlay.className = 'popup-overlay';
+      const content = document.createElement('div'); content.className = 'popup-content';
+      content.innerHTML = `
+        <h2 class="text-2xl font-bold mb-4" style="color: #f97316;">تسديد ديون - ${traderName}</h2>
+        <p class="mb-2">إجمالي الدين الحالي: <span class="font-bold" style="color: #ff8a8a;">${currentDebt.toFixed(2)} ريال</span></p>
+        <form id="payment-form" class="space-y-4">
+          <div><label class="block text-sm font-medium" style="color: #ccc;">المبلغ المسدد</label><input type="number" id="payment-amount" min="0.01" step="0.01" max="${currentDebt}" required class="w-full p-3 border rounded-lg" style="background-color: #2a2a2a; color: #fafafa; border-color: #444;"></div>
+          <div class="flex gap-3 mt-4"><button type="submit" class="btn-primary px-6 py-2 rounded-lg">تسديد</button><button type="button" id="close-popup" class="btn-secondary px-6 py-2 rounded-lg">إلغاء</button></div>
+        </form>`;
+      overlay.appendChild(content); document.body.appendChild(overlay);
+      document.getElementById('close-popup').addEventListener('click', () => overlay.remove());
+      document.getElementById('payment-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const amount = parseFloat(document.getElementById('payment-amount').value);
+        if (isNaN(amount) || amount <= 0) { alert('أدخل مبلغ صحيح'); return; }
+        if (amount > currentDebt) { alert('المبلغ المسدد أكبر من الدين الحالي'); return; }
+        payTraderDebt(traderId, amount); overlay.remove(); renderTraders();
+      });
+    }
+
+    function showInvoiceItemsPopup(invoice) {
+      const items = invoice.items || [];
+      let rows = items.map(it => `<tr class="border-b" style="border-color: #444;"><td class="p-3">${it.productSearch || 'غير محدد'}</td><td class="p-3">${it.length}</td><td class="p-3">${it.width}</td><td class="p-3">${it.price.toFixed(2)}</td><td class="p-3">${it.rowTotal.toFixed(2)}</td></tr>`).join('');
+      if (!rows) rows = '<tr><td colspan="5" class="p-3 text-center" style="color: #aaa;">لا توجد أصناف مفصلة</td></tr>';
+      document.querySelectorAll('.popup-overlay').forEach(el => el.remove());
+      const overlay = document.createElement('div'); overlay.className = 'popup-overlay';
+      const content = document.createElement('div'); content.className = 'popup-content max-w-3xl';
+      content.innerHTML = `<h2 class="text-2xl font-bold mb-4" style="color: #f97316;">تفاصيل الفاتورة: ${invoice.number}</h2>
+        <table class="w-full text-right border" style="background-color: #1a1a1a; border-color: #444;">
+          <thead style="background-color: #2a2a2a;"><tr><th class="p-3">الصنف</th><th class="p-3">الطول</th><th class="p-3">العرض</th><th class="p-3">سعر المتر</th><th class="p-3">الإجمالي</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div class="mt-4 flex justify-left"><button id="close-items-popup" class="btn-secondary px-4 py-2 rounded-lg">إغلاق</button></div>`;
+      overlay.appendChild(content); document.body.appendChild(overlay);
+      document.getElementById('close-items-popup').addEventListener('click', () => overlay.remove());
+    }
+
+    function showTraderInvoicesPopup(traderId, traderName) {
+      const traderInvoices = invoices.filter(inv => inv.traderId === traderId);
+      if (traderInvoices.length === 0) {
+        alert('لا توجد فواتير لهذا التاجر');
+        return;
+      }
+      let rows = traderInvoices.map(inv => `
+        <tr class="border-b" style="border-color: #444;">
+          <td class="p-3">${inv.date}</td>
+          <td class="p-3">${inv.number}</td>
+          <td class="p-3">${inv.total.toFixed(2)} ريال</td>
+          <td class="p-3">
+            <button class="show-items-btn table-btn blue" data-invoice='${JSON.stringify(inv).replace(/'/g, "&#39;")}'>
+              <i class="fas fa-list"></i> عرض الأصناف
+            </button>
+          </td>
+        </tr>
+      `).join('');
+
+      document.querySelectorAll('.popup-overlay').forEach(el => el.remove());
+      const overlay = document.createElement('div'); overlay.className = 'popup-overlay';
+      const content = document.createElement('div'); content.className = 'popup-content max-w-4xl';
+      content.innerHTML = `
+        <h2 class="text-2xl font-bold mb-4" style="color: #f97316;">فواتير التاجر: ${traderName}</h2>
+        <table class="w-full text-right border" style="background-color: #1a1a1a; border-color: #444;">
+          <thead style="background-color: #2a2a2a;">
+            <tr><th class="p-3">تاريخ الفاتورة</th><th class="p-3">رقم الفاتورة</th><th class="p-3">الإجمالي</th><th class="p-3">الإجراءات</th></tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+        <div class="mt-4 flex justify-left"><button id="close-invoice-popup" class="btn-secondary px-4 py-2 rounded-lg">إغلاق</button></div>
+      `;
+      overlay.appendChild(content); document.body.appendChild(overlay);
+
+      document.getElementById('close-invoice-popup').addEventListener('click', () => overlay.remove());
+      content.querySelectorAll('.show-items-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          try {
+            const invoice = JSON.parse(btn.dataset.invoice);
+            showInvoiceItemsPopup(invoice);
+          } catch (e) { alert('خطأ في عرض التفاصيل'); }
+        });
+      });
+    }
+
+    function renderTraders() {
+      const main = document.getElementById('main-content');
+      const filterTraders = (term) => traders.filter(t => t.name.includes(term) || t.phone.includes(term));
+      const renderTable = (filtered) => {
+        if (filtered.length === 0) return `<div class="text-center py-16"><i class="fas fa-users text-6xl mb-4" style="color: #444;"></i><p class="text-xl" style="color: #aaa;">لا يوجد تجار لديك حالياً.</p></div>`;
+        let rows = filtered.map(t => {
+          const debt = getTraderDebt(t.id);
+          return `<tr class="border-b hover:bg-gray-800" style="border-color: #444;">
+            <td class="p-3">${t.name}</td>
+            <td class="p-3">${t.phone}</td>
+            <td class="p-3">${t.address}</td>
+            <td class="p-3 font-semibold" style="${debt > 0 ? 'color: #ff8a8a;' : 'color: #8aff8a;'}">${debt.toFixed(2)} ريال</td>
+            <td class="p-3">
+              <button class="show-invoices-btn table-btn blue ml-2" data-id="${t.id}" data-name="${t.name}"><i class="fas fa-file-invoice"></i> عرض فواتير</button>
+              <button class="edit-trader-btn table-btn orange ml-2" data-id="${t.id}"><i class="fas fa-edit"></i> تعديل</button>
+              <button class="pay-debt-btn table-btn green ml-2" data-id="${t.id}" data-name="${t.name}"><i class="fas fa-hand-holding-usd"></i> تسديد ديون</button>
+              <button class="delete-trader-btn table-btn red" data-id="${t.id}"><i class="fas fa-trash"></i> حذف</button>
+            </td>
+          </tr>`;
+        }).join('');
+        return `<table class="w-full text-right border rounded-xl overflow-hidden" style="background-color: #1a1a1a; border-color: #444;"><thead style="background-color: #2a2a2a;"><tr><th class="p-3">الاسم</th><th class="p-3">الهاتف</th><th class="p-3">العنوان</th><th class="p-3">باقي ديون</th><th class="p-3">إجراءات</th></tr></thead><tbody>${rows}</tbody></table>`;
+      };
+      main.innerHTML = `<div class="rounded-2xl shadow-xl p-6 md:p-8 border" style="background-color: #1a1a1a; border-color: #333;"><div class="flex flex-wrap items-center justify-between gap-4 mb-6"><h2 class="text-3xl font-bold flex items-center gap-2" style="color: #fafafa;"><i class="fas fa-users" style="color: #f97316;"></i> التجار</h2><button id="add-trader-btn" class="btn-primary px-5 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-plus"></i> إضافة تاجر جديد</button></div><div class="mb-4"><input type="text" id="search-trader" placeholder="ابحث بالاسم أو الهاتف..." class="w-full md:w-1/2 p-3 border rounded-lg" style="background-color: #2a2a2a; color: #fafafa; border-color: #444;"></div><div id="traders-table-container">${renderTable(traders)}</div></div>`;
+      document.getElementById('search-trader')?.addEventListener('input', function(e) { const term = e.target.value; document.getElementById('traders-table-container').innerHTML = renderTable(traders.filter(t => t.name.includes(term) || t.phone.includes(term))); attachTraderButtons(); });
+      document.getElementById('add-trader-btn').addEventListener('click', () => showTraderPopup());
+      attachTraderButtons();
+    }
+
+    function attachTraderButtons() {
+      document.querySelectorAll('.show-invoices-btn').forEach(btn => {
+        btn.addEventListener('click', () => showTraderInvoicesPopup(parseInt(btn.dataset.id), btn.dataset.name));
+      });
+      document.querySelectorAll('.edit-trader-btn').forEach(btn => {
+        btn.addEventListener('click', () => { const t = traders.find(t => t.id === parseInt(btn.dataset.id)); if(t) showTraderPopup(t); });
+      });
+      document.querySelectorAll('.pay-debt-btn').forEach(btn => {
+        btn.addEventListener('click', () => showPaymentPopup(parseInt(btn.dataset.id), btn.dataset.name));
+      });
+      document.querySelectorAll('.delete-trader-btn').forEach(btn => {
+        btn.addEventListener('click', () => deleteTrader(parseInt(btn.dataset.id)));
+      });
+    }
+
+    // ---------- دالة توليد PDF للفاتورة ----------
+    function downloadInvoicePDF(invoice) {
+      // إنشاء هيكل HTML للفاتورة
+      const itemsRows = invoice.items.map(it => `
+        <tr style="border-bottom: 1px solid #444; text-align: right;">
+          <td style="padding: 8px;">${it.productSearch || 'غير محدد'}</td>
+          <td style="padding: 8px;">${it.length}</td>
+          <td style="padding: 8px;">${it.width}</td>
+          <td style="padding: 8px;">${it.price.toFixed(2)} ريال</td>
+          <td style="padding: 8px;">${it.rowTotal.toFixed(2)} ريال</td>
+        </tr>
+      `).join('');
+
+      const htmlContent = `
+        <div style="background-color: #1a1a1a; color: #fafafa; padding: 20px; font-family: sans-serif; direction: rtl;">
+          <h1 style="color: #f97316; text-align: center;">فاتورة رقم: ${invoice.number}</h1>
+          <p style="text-align: left;">التاريخ: ${invoice.date}</p>
+          <table style="width: 100%; border-collapse: collapse; margin-top: 20px;">
+            <thead>
+              <tr style="background-color: #2a2a2a;">
+                <th style="padding: 10px; border: 1px solid #444;">الصنف</th>
+                <th style="padding: 10px; border: 1px solid #444;">الطول</th>
+                <th style="padding: 10px; border: 1px solid #444;">العرض</th>
+                <th style="padding: 10px; border: 1px solid #444;">سعر المتر</th>
+                <th style="padding: 10px; border: 1px solid #444;">الإجمالي</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${itemsRows}
+            </tbody>
+          </table>
+          <h3 style="text-align: left; color: #f97316; margin-top: 20px;">الإجمالي الكلي: ${invoice.total.toFixed(2)} ريال</h3>
+        </div>
+      `;
+
+      // إنشاء عنصر مؤقت وتحويله إلى PDF
+      const element = document.createElement('div');
+      element.innerHTML = htmlContent;
+      document.body.appendChild(element);
+      
+      const opt = {
+        margin:        [0.5, 0.5, 0.5, 0.5],
+        filename:     `فاتورة_${invoice.number}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { scale: 2 },
+        jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+      };
+      
+      html2pdf().set(opt).from(element).save().then(() => {
+        document.body.removeChild(element);
+      });
+    }
+
+    // ---------- قسم العملاء مع زر PDF ----------
+    function renderCustomers() {
+      const main = document.getElementById('main-content');
+      const customerInvoices = invoices.filter(inv => inv.partyType === 'customer').sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      const filterInvoices = (searchNumber, searchDate) => {
+        return customerInvoices.filter(inv => {
+          const matchNumber = searchNumber ? inv.number.includes(searchNumber) : true;
+          const matchDate = searchDate ? inv.date === searchDate : true;
+          return matchNumber && matchDate;
+        });
+      };
+
+      const renderTable = (filtered) => {
+        if (filtered.length === 0) return `<div class="text-center py-16"><i class="fas fa-user-friends text-6xl mb-4" style="color: #444;"></i><p class="text-xl" style="color: #aaa;">لا توجد فواتير للعملاء بعد.</p></div>`;
+        let rows = filtered.map(inv => `<tr class="border-b hover:bg-gray-800" style="border-color: #444;">
+          <td class="p-3">${inv.date}</td>
+          <td class="p-3">${inv.number}</td>
+          <td class="p-3">${inv.total.toFixed(2)} ريال</td>
+          <td class="p-3">
+            <button class="show-items-btn table-btn blue ml-2" data-invoice='${JSON.stringify(inv).replace(/'/g, "&#39;")}'><i class="fas fa-list"></i> عرض</button>
+            <button class="pdf-btn table-btn orange" data-invoice='${JSON.stringify(inv).replace(/'/g, "&#39;")}'><i class="fas fa-file-pdf"></i> PDF</button>
+          </td>
+        </tr>`).join('');
+        return `<table class="w-full text-right border rounded-xl overflow-hidden" style="background-color: #1a1a1a; border-color: #444;"><thead style="background-color: #2a2a2a;"><tr><th class="p-3">تاريخ الفاتورة</th><th class="p-3">رقم الفاتورة</th><th class="p-3">إجمالي الفاتورة</th><th class="p-3">الإجراءات</th></tr></thead><tbody>${rows}</tbody></table>`;
+      };
+
+      main.innerHTML = `
+        <div class="rounded-2xl shadow-xl p-6 md:p-8 border" style="background-color: #1a1a1a; border-color: #333;">
+          <div class="flex flex-wrap items-center justify-between gap-4 mb-6">
+            <h2 class="text-3xl font-bold flex items-center gap-2" style="color: #fafafa;"><i class="fas fa-user-friends" style="color: #f97316;"></i> فواتير العملاء</h2>
+          </div>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <input type="text" id="search-invoice-number" placeholder="بحث برقم الفاتورة..." class="p-3 border rounded-lg" style="background-color: #2a2a2a; color: #fafafa; border-color: #444;">
+            <input type="date" id="search-invoice-date" class="p-3 border rounded-lg" style="background-color: #2a2a2a; color: #fafafa; border-color: #444;">
+          </div>
+          <div id="customers-table-container">
+            ${renderTable(customerInvoices)}
+          </div>
+        </div>
+      `;
+
+      const numberInput = document.getElementById('search-invoice-number');
+      const dateInput = document.getElementById('search-invoice-date');
+
+      function updateFilter() {
+        const filtered = filterInvoices(numberInput.value, dateInput.value);
+        document.getElementById('customers-table-container').innerHTML = renderTable(filtered);
+        attachCustomerButtons();
+      }
+
+      numberInput.addEventListener('input', updateFilter);
+      dateInput.addEventListener('change', updateFilter);
+
+      attachCustomerButtons();
+    }
+
+    function attachCustomerButtons() {
+      document.querySelectorAll('.show-items-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          try {
+            const invoice = JSON.parse(btn.dataset.invoice);
+            showInvoiceItemsPopup(invoice);
+          } catch (e) { alert('خطأ في عرض التفاصيل'); }
+        });
+      });
+      // أزرار PDF
+      document.querySelectorAll('.pdf-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          try {
+            const invoice = JSON.parse(btn.dataset.invoice);
+            downloadInvoicePDF(invoice);
+          } catch (e) { alert('خطأ في إنشاء PDF'); }
+        });
+      });
+    }
+
+    // ---------- قسم المخزن ----------
+    function showProductPopup(productToEdit = null) {
+      document.querySelectorAll('.popup-overlay').forEach(el => el.remove());
+      const overlay = document.createElement('div'); overlay.className = 'popup-overlay';
+      const content = document.createElement('div'); content.className = 'popup-content';
+      content.innerHTML = `
+        <h2 class="text-2xl font-bold mb-4" style="color: #f97316;">${productToEdit ? 'تعديل صنف' : 'إضافة صنف جديد'}</h2>
+        <form id="product-form" class="space-y-4">
+          <div><label class="block text-sm font-medium" style="color: #ccc;">اسم الصنف</label><input type="text" id="product-name" required value="${productToEdit ? productToEdit.name : ''}" class="w-full p-3 border rounded-lg" style="background-color: #2a2a2a; color: #fafafa; border-color: #444;"></div>
+          <div><label class="block text-sm font-medium" style="color: #ccc;">سعر المتر (ريال)</label><input type="number" step="0.01" min="0" id="product-price" required value="${productToEdit ? productToEdit.pricePerMeter : ''}" class="w-full p-3 border rounded-lg" style="background-color: #2a2a2a; color: #fafafa; border-color: #444;"></div>
+          <div><label class="block text-sm font-medium" style="color: #ccc;">وصف (اختياري)</label><textarea id="product-desc" rows="2" class="w-full p-3 border rounded-lg" style="background-color: #2a2a2a; color: #fafafa; border-color: #444;">${productToEdit ? productToEdit.description || '' : ''}</textarea></div>
+          <div class="flex gap-3 mt-4"><button type="submit" class="btn-primary px-6 py-2 rounded-lg">${productToEdit ? 'تحديث' : 'إضافة'}</button><button type="button" id="close-popup" class="btn-secondary px-6 py-2 rounded-lg">إلغاء</button></div>
+        </form>`;
+      overlay.appendChild(content); document.body.appendChild(overlay);
+      document.getElementById('close-popup').addEventListener('click', () => overlay.remove());
+      document.getElementById('product-form').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.getElementById('product-name').value.trim();
+        const price = parseFloat(document.getElementById('product-price').value);
+        const desc = document.getElementById('product-desc').value.trim();
+        if (!name || isNaN(price) || price < 0) { alert('يرجى إدخال اسم وسعر صحيح'); return; }
+        if (productToEdit) { productToEdit.name = name; productToEdit.pricePerMeter = price; productToEdit.description = desc; }
+        else { const newId = products.length ? Math.max(...products.map(p => p.id)) + 1 : 1; products.push({ id: newId, name, pricePerMeter: price, description: desc }); }
+        saveProducts(products); overlay.remove(); renderStock();
+      });
+    }
+
+    function deleteProduct(productId) {
+      if (confirm('هل أنت متأكد من حذف هذا الصنف؟')) { products = products.filter(p => p.id !== productId); saveProducts(products); renderStock(); }
+    }
+
+    function renderStock() {
+      const main = document.getElementById('main-content');
+      const filterProducts = (term) => products.filter(p => p.name.includes(term) || (p.description && p.description.includes(term)));
+      const renderTable = (filtered) => {
+        if (filtered.length === 0) return `<div class="text-center py-16"><i class="fas fa-boxes text-6xl mb-4" style="color: #444;"></i><p class="text-xl" style="color: #aaa;">لا يوجد أصناف في المخزن حالياً.</p></div>`;
+        let rows = filtered.map(p => `<tr class="border-b hover:bg-gray-800" style="border-color: #444;"><td class="p-3">${p.id}</td><td class="p-3">${p.name}</td><td class="p-3">${p.pricePerMeter.toFixed(2)} ريال</td><td class="p-3">${p.description || '-'}</td><td class="p-3"><button class="edit-product-btn table-btn orange ml-2" data-id="${p.id}"><i class="fas fa-edit"></i> تعديل</button><button class="delete-product-btn table-btn red" data-id="${p.id}"><i class="fas fa-trash"></i> حذف</button></td></tr>`).join('');
+        return `<table class="w-full text-right border rounded-xl overflow-hidden" style="background-color: #1a1a1a; border-color: #444;"><thead style="background-color: #2a2a2a;"><tr><th class="p-3">#</th><th class="p-3">اسم الصنف</th><th class="p-3">سعر المتر</th><th class="p-3">الوصف</th><th class="p-3">إجراءات</th></tr></thead><tbody>${rows}</tbody></table>`;
+      };
+      main.innerHTML = `<div class="rounded-2xl shadow-xl p-6 md:p-8 border" style="background-color: #1a1a1a; border-color: #333;"><div class="flex flex-wrap items-center justify-between gap-4 mb-6"><h2 class="text-3xl font-bold flex items-center gap-2" style="color: #fafafa;"><i class="fas fa-boxes" style="color: #f97316;"></i> المخزن</h2><button id="add-product-btn" class="btn-primary px-5 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-plus"></i> إضافة صنف جديد</button></div><div class="mb-4"><input type="text" id="search-product" placeholder="ابحث باسم الصنف أو الوصف..." class="w-full md:w-1/2 p-3 border rounded-lg" style="background-color: #2a2a2a; color: #fafafa; border-color: #444;"></div><div id="products-table-container">${renderTable(products)}</div></div>`;
+      document.getElementById('search-product')?.addEventListener('input', function(e) { const term = e.target.value; document.getElementById('products-table-container').innerHTML = renderTable(products.filter(p => p.name.includes(term) || (p.description && p.description.includes(term)))); attachProductButtons(); });
+      document.getElementById('add-product-btn').addEventListener('click', () => showProductPopup());
+      attachProductButtons();
+    }
+
+    function attachProductButtons() {
+      document.querySelectorAll('.edit-product-btn').forEach(btn => { btn.addEventListener('click', () => { const p = products.find(p => p.id === parseInt(btn.dataset.id)); if(p) showProductPopup(p); }); });
+      document.querySelectorAll('.delete-product-btn').forEach(btn => { btn.addEventListener('click', () => { deleteProduct(parseInt(btn.dataset.id)); }); });
+    }
+
+    // ---------- التنقل ----------
+    function setActiveSidebar(activeId) {
+      document.querySelectorAll('.sidebar-btn').forEach(btn => btn.classList.remove('active', 'bg-gray-800', 'border-r-4'));
+      document.getElementById(activeId)?.classList.add('active', 'bg-gray-800', 'border-r-4');
+    }
+
+    document.getElementById('btn-invoice').addEventListener('click', () => { currentView = 'invoice'; setActiveSidebar('btn-invoice'); renderInvoice(); });
+    document.getElementById('btn-traders').addEventListener('click', () => { currentView = 'traders'; setActiveSidebar('btn-traders'); renderTraders(); });
+    document.getElementById('btn-customers').addEventListener('click', () => { currentView = 'customers'; setActiveSidebar('btn-customers'); renderCustomers(); });
+    document.getElementById('btn-stock').addEventListener('click', () => { currentView = 'stock'; setActiveSidebar('btn-stock'); renderStock(); });
+
+    // بدء التشغيل بالعملاء
+    renderCustomers();
+    setActiveSidebar('btn-customers');
+  })();
+</script>
+</body>
+</html>
