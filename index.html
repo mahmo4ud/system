@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>نظام إدارة السجاد - طباعة PDF</title>
+  <title>نظام إدارة السجاد - تحديد النص تلقائياً</title>
   <!-- Tailwind & Font Awesome -->
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -129,15 +129,8 @@
     const STORAGE_INVOICES = 'sijjad_invoices';
     const STORAGE_PRODUCTS = 'sijjad_products';
 
-    // ---------- بيانات المنتجات الافتراضية ----------
-    const defaultProducts = [
-      { id: 1, name: 'سجاد أحمر (ممتاز)', pricePerMeter: 85, description: 'سجاد صوف فاخر' },
-      { id: 2, name: 'سجاد أزرق (صوف)', pricePerMeter: 120, description: 'لون أزرق غامق' },
-      { id: 3, name: 'سجاد أخضر (حرير)', pricePerMeter: 210, description: 'حرير طبيعي' },
-      { id: 4, name: 'سجاد تركي', pricePerMeter: 340, description: 'صناعة تركية' },
-      { id: 5, name: 'سجاد إيراني', pricePerMeter: 450, description: 'أصالة إيرانية' },
-      { id: 6, name: 'سجاد مودرن', pricePerMeter: 175, description: 'تصميمات عصرية' },
-    ];
+    // ---------- بيانات المنتجات الافتراضية (فارغة) ----------
+    const defaultProducts = [];
 
     // ---------- تحميل البيانات من localStorage ----------
     function loadTraders() {
@@ -156,8 +149,12 @@
 
     function loadProducts() {
       const stored = localStorage.getItem(STORAGE_PRODUCTS);
-      if (stored) { try { return JSON.parse(stored); } catch (e) { return defaultProducts; } }
-      else { saveProducts(defaultProducts); return defaultProducts; }
+      if (stored) {
+        try { return JSON.parse(stored); } catch (e) { return defaultProducts; }
+      } else {
+        saveProducts(defaultProducts);
+        return defaultProducts;
+      }
     }
     function saveProducts(products) { localStorage.setItem(STORAGE_PRODUCTS, JSON.stringify(products)); }
 
@@ -241,7 +238,7 @@
       return true;
     }
 
-    // ---------- عرض الفاتورة (كما هي) ----------
+    // ---------- عرض الفاتورة مع زر حذف الكل ----------
     function renderInvoice() {
       const main = document.getElementById('main-content');
       if (!main) return;
@@ -270,7 +267,14 @@
       });
 
       html += `</div>
-      <button id="add-item-btn" class="mt-3 px-5 py-3 rounded-xl border transition flex items-center gap-2 text-base font-medium btn-secondary"><i class="fas fa-plus-circle" style="color: #f97316;"></i> إضافة صنف آخر</button>`;
+      <div class="flex gap-2 mt-3">
+        <button id="add-item-btn" class="px-5 py-3 rounded-xl border transition flex items-center gap-2 text-base font-medium btn-secondary">
+          <i class="fas fa-plus-circle" style="color: #f97316;"></i> إضافة صنف آخر
+        </button>
+        <button id="clear-all-items-btn" class="px-5 py-3 rounded-xl border transition flex items-center gap-2 text-base font-medium btn-secondary border-red-600 text-red-400 hover:bg-red-600/10">
+          <i class="fas fa-trash-alt"></i> حذف الكل
+        </button>
+      </div>`;
 
       html += `<div class="mt-8 p-5 rounded-xl border" style="background-color: #2a2a2a; border-color: #444;">
         <div class="flex items-center gap-6 flex-wrap">
@@ -364,6 +368,7 @@
       });
 
       document.querySelectorAll('.length-input,.width-input,.price-input').forEach(inp => {
+        // حدث تغيير القيمة
         inp.addEventListener('input', function(e) {
           let idx = this.dataset.index;
           let len = document.querySelector(`.length-input[data-index="${idx}"]`).value;
@@ -375,6 +380,11 @@
           updateRowTotal(parseInt(idx));
           document.querySelector(`.row-total[data-index="${idx}"]`).value = invoiceItems[idx].rowTotal.toFixed(2);
           updateOverallTotal(); updateInstallmentFields();
+        });
+
+        // حدث focus: تحديد النص بالكامل
+        inp.addEventListener('focus', function() {
+          this.select();
         });
       });
 
@@ -390,6 +400,15 @@
       document.getElementById('add-item-btn')?.addEventListener('click', () => {
         invoiceItems.push({ id: Date.now(), productSearch: '', length: 0, width: 0, price: 0, rowTotal: 0 });
         renderInvoice();
+      });
+
+      // زر حذف الكل
+      document.getElementById('clear-all-items-btn')?.addEventListener('click', () => {
+        if (invoiceItems.length > 0 && confirm('هل أنت متأكد من حذف جميع الأصناف؟')) {
+          invoiceItems = [{ id: Date.now() + Math.random(), productSearch: '', length: 0, width: 0, price: 0, rowTotal: 0 }];
+          recalcAllRows();
+          renderInvoice();
+        }
       });
 
       document.getElementById('paid-amount')?.addEventListener('input', function() { paidAmount = parseFloat(this.value) || 0; updateInstallmentFields(); });
@@ -568,7 +587,6 @@
 
     // ---------- دالة توليد PDF للفاتورة ----------
     function downloadInvoicePDF(invoice) {
-      // إنشاء هيكل HTML للفاتورة
       const itemsRows = invoice.items.map(it => `
         <tr style="border-bottom: 1px solid #444; text-align: right;">
           <td style="padding: 8px;">${it.productSearch || 'غير محدد'}</td>
@@ -601,7 +619,6 @@
         </div>
       `;
 
-      // إنشاء عنصر مؤقت وتحويله إلى PDF
       const element = document.createElement('div');
       element.innerHTML = htmlContent;
       document.body.appendChild(element);
@@ -685,7 +702,6 @@
           } catch (e) { alert('خطأ في عرض التفاصيل'); }
         });
       });
-      // أزرار PDF
       document.querySelectorAll('.pdf-btn').forEach(btn => {
         btn.addEventListener('click', () => {
           try {
@@ -717,22 +733,47 @@
         const price = parseFloat(document.getElementById('product-price').value);
         const desc = document.getElementById('product-desc').value.trim();
         if (!name || isNaN(price) || price < 0) { alert('يرجى إدخال اسم وسعر صحيح'); return; }
-        if (productToEdit) { productToEdit.name = name; productToEdit.pricePerMeter = price; productToEdit.description = desc; }
-        else { const newId = products.length ? Math.max(...products.map(p => p.id)) + 1 : 1; products.push({ id: newId, name, pricePerMeter: price, description: desc }); }
-        saveProducts(products); overlay.remove(); renderStock();
+        if (productToEdit) {
+          productToEdit.name = name;
+          productToEdit.pricePerMeter = price;
+          productToEdit.description = desc;
+        } else {
+          const newId = products.length ? Math.max(...products.map(p => p.id)) + 1 : 1;
+          products.push({ id: newId, name, pricePerMeter: price, description: desc });
+        }
+        saveProducts(products);
+        overlay.remove();
+        renderStock();
       });
     }
 
     function deleteProduct(productId) {
-      if (confirm('هل أنت متأكد من حذف هذا الصنف؟')) { products = products.filter(p => p.id !== productId); saveProducts(products); renderStock(); }
+      if (confirm('هل أنت متأكد من حذف هذا الصنف؟')) {
+        products = products.filter(p => p.id !== productId);
+        saveProducts(products);
+        renderStock();
+      }
     }
 
     function renderStock() {
       const main = document.getElementById('main-content');
       const filterProducts = (term) => products.filter(p => p.name.includes(term) || (p.description && p.description.includes(term)));
       const renderTable = (filtered) => {
-        if (filtered.length === 0) return `<div class="text-center py-16"><i class="fas fa-boxes text-6xl mb-4" style="color: #444;"></i><p class="text-xl" style="color: #aaa;">لا يوجد أصناف في المخزن حالياً.</p></div>`;
-        let rows = filtered.map(p => `<tr class="border-b hover:bg-gray-800" style="border-color: #444;"><td class="p-3">${p.id}</td><td class="p-3">${p.name}</td><td class="p-3">${p.pricePerMeter.toFixed(2)} ريال</td><td class="p-3">${p.description || '-'}</td><td class="p-3"><button class="edit-product-btn table-btn orange ml-2" data-id="${p.id}"><i class="fas fa-edit"></i> تعديل</button><button class="delete-product-btn table-btn red" data-id="${p.id}"><i class="fas fa-trash"></i> حذف</button></td></tr>`).join('');
+        if (filtered.length === 0) {
+          return `<div class="text-center py-16"><i class="fas fa-boxes text-6xl mb-4" style="color: #444;"></i><p class="text-xl" style="color: #aaa;">لا يوجد أصناف في المخزن حالياً. قم بإضافة صنف جديد.</p></div>`;
+        }
+        let rows = filtered.map(p => `
+          <tr class="border-b hover:bg-gray-800" style="border-color: #444;">
+            <td class="p-3">${p.id}</td>
+            <td class="p-3">${p.name}</td>
+            <td class="p-3">${p.pricePerMeter.toFixed(2)} ريال</td>
+            <td class="p-3">${p.description || '-'}</td>
+            <td class="p-3">
+              <button class="edit-product-btn table-btn orange ml-2" data-id="${p.id}"><i class="fas fa-edit"></i> تعديل</button>
+              <button class="delete-product-btn table-btn red" data-id="${p.id}"><i class="fas fa-trash"></i> حذف</button>
+            </td>
+          </tr>
+        `).join('');
         return `<table class="w-full text-right border rounded-xl overflow-hidden" style="background-color: #1a1a1a; border-color: #444;"><thead style="background-color: #2a2a2a;"><tr><th class="p-3">#</th><th class="p-3">اسم الصنف</th><th class="p-3">سعر المتر</th><th class="p-3">الوصف</th><th class="p-3">إجراءات</th></tr></thead><tbody>${rows}</tbody></table>`;
       };
       main.innerHTML = `<div class="rounded-2xl shadow-xl p-6 md:p-8 border" style="background-color: #1a1a1a; border-color: #333;"><div class="flex flex-wrap items-center justify-between gap-4 mb-6"><h2 class="text-3xl font-bold flex items-center gap-2" style="color: #fafafa;"><i class="fas fa-boxes" style="color: #f97316;"></i> المخزن</h2><button id="add-product-btn" class="btn-primary px-5 py-2 rounded-xl flex items-center gap-2"><i class="fas fa-plus"></i> إضافة صنف جديد</button></div><div class="mb-4"><input type="text" id="search-product" placeholder="ابحث باسم الصنف أو الوصف..." class="w-full md:w-1/2 p-3 border rounded-lg" style="background-color: #2a2a2a; color: #fafafa; border-color: #444;"></div><div id="products-table-container">${renderTable(products)}</div></div>`;
